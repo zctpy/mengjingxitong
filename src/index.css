@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", "Playfair Display", serif;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --zen-bg: #FFFFFF;
+  --zen-ink: #1C1C1A;
+  --zen-accent: #B59049;
+  --zen-card: rgba(255, 255, 255, 0.8);
+  --zen-border: rgba(28, 28, 26, 0.1);
+  --zen-glass: blur(24px);
+}
+
+.theme-platinum {
+  --zen-bg: #F8F9FA;
+  --zen-ink: #1A1A1A;
+  --zen-accent: #C5A059;
+  --zen-card: rgba(255, 255, 255, 0.7);
+  --zen-border: rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%);
+}
+
+.theme-forest {
+  --zen-bg: #0A1A0F;
+  --zen-ink: #E0E7E1;
+  --zen-accent: #4ADE80;
+  --zen-card: rgba(15, 30, 20, 0.7);
+  --zen-border: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #0A1A0F 0%, #1A2E1F 100%);
+}
+
+.theme-amber {
+  --zen-bg: #1A0F05;
+  --zen-ink: #FEF3C7;
+  --zen-accent: #F59E0B;
+  --zen-card: rgba(30, 20, 10, 0.7);
+  --zen-border: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #1A0F05 0%, #2D1A0A 100%);
+}
+
+.theme-azure {
+  --zen-bg: #F0F7FF;
+  --zen-ink: #1E3A8A;
+  --zen-accent: #3B82F6;
+  --zen-card: rgba(255, 255, 255, 0.7);
+  --zen-border: rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #F0F7FF 0%, #E0F2FE 100%);
+}
+
+body {
+  background-color: var(--zen-bg);
+  color: var(--zen-ink);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1), color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100vh;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.glass {
+  background: var(--zen-card);
+  backdrop-filter: var(--zen-glass);
+  border: 1px solid var(--zen-border);
+}
+
+.atmosphere-bg {
+  background: 
+    radial-gradient(circle at 0% 0%, var(--zen-accent) 0.03, transparent 40%),
+    radial-gradient(circle at 100% 100%, var(--zen-accent) 0.03, transparent 40%);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--zen-accent);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--zen-ink);
+  opacity: 0.2;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
