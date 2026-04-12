@@ -26,6 +26,7 @@ export const DiagnosisReport: React.FC<DiagnosisReportProps> = ({
   toggleAction,
   copySuccess
 }) => {
+  console.log("DiagnosisReport rendering", { diagnosis, dreamText });
   return (
     <motion.div 
       key="diagnosis"
@@ -118,6 +119,17 @@ export const DiagnosisReport: React.FC<DiagnosisReportProps> = ({
               {diagnosis.analysis}
             </p>
           </div>
+
+          {diagnosis.obstacleType !== '无' && (
+            <div className="space-y-6 bg-[var(--zen-accent)]/5 p-10 rounded-[2.5rem] border border-[var(--zen-accent)]/10">
+              <label className="text-[11px] font-bold uppercase tracking-[0.3em] text-[var(--zen-accent)] flex items-center gap-2">
+                <ShieldAlert className="w-3.5 h-3.5" /> {diagnosis.obstacleType}深度释义
+              </label>
+              <p className="text-xl font-serif leading-relaxed opacity-80 italic">
+                {diagnosis.obstacleDefinition}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-2">

@@ -45,12 +45,12 @@ export async function analyzeDream(
    - 飞行、光、神通、无畏 -> 高阶
    - 授记、稳定 -> 十地
 
-4. 错误诊断：
-   - 法障：梦混乱、说法但不知所说。原因：轻慢法/善知识。
-   - 业障：坠落、被杀、病、污染。
-   - 魔业：自以为高、梦境异常强烈但混乱。
+4. 错误诊断深度定义：
+   - 法障：指在修行中因轻慢佛法、轻慢善知识，或仅停留在文字知见而产生的障碍。表现为梦中说法却不知所云、听法时心生散乱、或梦境极度混乱。
+   - 业障：指往昔恶业在现世修行中的显现。表现为梦中坠落、被追杀、身体沉重、疾病、或身处污秽环境。这是身心被负面能量束缚的征兆。
+   - 魔业：指修行中产生的微细执着或贡高我慢被外境所乘。表现为梦境异常强烈、自以为获得极高成就、或在梦中产生强烈的贪执与傲慢。
 
-请输出JSON格式的诊断结果，包含：category, status, ground, obstacleType, analysis (简短解释), action (具体修行指令列表), logic (底层逻辑说明)。
+请输出JSON格式的诊断结果，包含：category, status, ground, obstacleType, obstacleDefinition (对识别出的障碍进行深度定义和原理说明), analysis (简短解释), action (具体修行指令列表), logic (底层逻辑说明)。
 `;
 
   console.log("Starting Gemini analysis...");
@@ -67,11 +67,12 @@ export async function analyzeDream(
             status: { type: Type.STRING },
             ground: { type: Type.STRING },
             obstacleType: { type: Type.STRING },
+            obstacleDefinition: { type: Type.STRING },
             analysis: { type: Type.STRING },
             action: { type: Type.ARRAY, items: { type: Type.STRING } },
             logic: { type: Type.STRING },
           },
-          required: ["category", "status", "ground", "obstacleType", "analysis", "action", "logic"],
+          required: ["category", "status", "ground", "obstacleType", "obstacleDefinition", "analysis", "action", "logic"],
         },
       },
     });
@@ -79,7 +80,7 @@ export async function analyzeDream(
     const text = response.text;
     if (!text) {
       console.error("Gemini returned empty text");
-      throw new Error("AI engine returned an empty response.");
+      throw new Error("AI引擎返回了空响应。");
     }
 
     console.log("Gemini analysis successful");
@@ -87,13 +88,17 @@ export async function analyzeDream(
       return JSON.parse(text);
     } catch (parseError) {
       console.error("Failed to parse AI response:", text);
-      throw new Error("Failed to parse the diagnosis report. Please try again.");
+      throw new Error("解析诊断报告失败，请重试。");
     }
   } catch (apiError: any) {
     console.error("Gemini API Error Detail:", apiError);
     if (apiError.message?.includes("API key not valid")) {
-      throw new Error("API Key is invalid. Please check your configuration.");
+      throw new Error("API Key 无效，请检查配置。");
     }
-    throw apiError;
+    // If it's a 404, it might be the model name.
+    if (apiError.status === "NOT_FOUND" || apiError.code === 404) {
+      throw new Error("模型未找到或不可用，请稍后重试。");
+    }
+    throw new Error(`分析失败: ${apiError.message || '未知错误'}`);
   }
 }

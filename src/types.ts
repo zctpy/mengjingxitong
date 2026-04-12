@@ -5,6 +5,7 @@ export interface DreamDiagnosis {
   status: "正常" | "偏差" | "危险";
   ground: "初地 (入门)" | "中期 (2-6地)" | "高阶 (7-9地)" | "十地";
   obstacleType: "法障" | "业障" | "魔业" | "无" | "精进不足";
+  obstacleDefinition: string;
   analysis: string;
   action: string[];
   logic: string;

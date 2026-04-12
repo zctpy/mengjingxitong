@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { analyzeDream } from './services/geminiService';
 import { Theme, DreamDiagnosis, HistoryItem } from './types';
 import { Header } from './components/layout/Header';
@@ -9,21 +10,150 @@ import { DreamInputForm } from './components/dream/DreamInputForm';
 import { DiagnosisReport } from './components/diagnosis/DiagnosisReport';
 import { HistorySidebar } from './components/history/HistorySidebar';
 
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[var(--zen-bg)] p-8">
+          <div className="max-w-md w-full bg-white rounded-[2rem] p-10 shadow-2xl border border-red-100 text-center space-y-6">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-gray-900">系统运行异常</h2>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              很抱歉，程序在运行过程中遇到了不可预期的错误。这可能是由于数据格式不兼容或网络波动导致的。
+            </p>
+            <div className="p-4 bg-gray-50 rounded-xl text-left text-xs font-mono text-red-600 overflow-auto max-h-32">
+              {this.state.error?.message}
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              重新加载系统
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [dreamText, setDreamText] = useState(() => localStorage.getItem('zen_dream_text') || '');
   const [emotion, setEmotion] = useState(() => localStorage.getItem('zen_emotion') || '平静');
   const [behavior, setBehavior] = useState(() => localStorage.getItem('zen_behavior') || '正常');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [diagnosis, setDiagnosis] = useState<DreamDiagnosis | null>(null);
+  const [diagnosis, setDiagnosis] = useState<DreamDiagnosis | null>(() => {
+    const saved = localStorage.getItem('zen_diagnosis');
+    console.log("Initial diagnosis load from localStorage:", saved ? "FOUND" : "NOT FOUND");
+    try {
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      console.log("Parsed diagnosis successfully");
+      return parsed;
+    } catch (e) {
+      console.error("Failed to parse diagnosis from localStorage:", e);
+      return null;
+    }
+  });
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     const saved = localStorage.getItem('zen_history');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [showHistory, setShowHistory] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('zen_theme') as Theme) || 'platinum');
-  const [completedActions, setCompletedActions] = useState<Set<number>>(new Set());
+  const [completedActions, setCompletedActions] = useState<Set<number>>(() => {
+    const saved = localStorage.getItem('zen_completed_actions');
+    try {
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    console.log("App mounted/remounted. Heartbeat: " + new Date().toISOString());
+    const handleUnload = () => console.log("Page unloading at: " + new Date().toISOString());
+    window.addEventListener('beforeunload', handleUnload);
+    
+    // Check localStorage status
+    try {
+      const keys = Object.keys(localStorage);
+      console.log("LocalStorage keys on mount:", keys);
+      const diag = localStorage.getItem('zen_diagnosis');
+      console.log("zen_diagnosis in localStorage on mount:", diag ? `EXISTS (${diag.length} bytes)` : "MISSING");
+    } catch (e) {
+      console.error("Error checking localStorage on mount:", e);
+    }
+
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (diagnosis) {
+        localStorage.setItem('zen_diagnosis', JSON.stringify(diagnosis));
+        console.log("Saved diagnosis to localStorage");
+      } else {
+        // IMPORTANT: Only remove if we are sure we want to clear it.
+        // If the state is null but it exists in localStorage, it might be a race condition during mount.
+        // However, since useState initializer is synchronous, if it's null here, it was null there.
+        // The real issue is likely that we need to ensure we don't clear it unless explicitly requested.
+        const exists = localStorage.getItem('zen_diagnosis');
+        if (exists && !diagnosis) {
+           console.warn("Diagnosis is null in state but exists in localStorage. Skipping removal to prevent race condition.");
+           return;
+        }
+        localStorage.removeItem('zen_diagnosis');
+        console.log("Removed diagnosis from localStorage");
+      }
+    } catch (e) {
+      console.error("Failed to save diagnosis to localStorage:", e);
+    }
+    console.log("Diagnosis state updated:", diagnosis ? "REPORT_VIEW" : "INPUT_VIEW");
+  }, [diagnosis]);
+
+  useEffect(() => {
+    localStorage.setItem('zen_completed_actions', JSON.stringify(Array.from(completedActions)));
+  }, [completedActions]);
+
+  useEffect(() => {
+    if (error) {
+      console.error("App error state set:", error);
+    }
+  }, [error]);
 
   useEffect(() => {
     localStorage.setItem('zen_dream_text', dreamText);
@@ -53,28 +183,51 @@ export default function App() {
   }, [history]);
 
   const handleAnalyze = async () => {
-    if (!dreamText.trim()) return;
+    console.log("handleAnalyze triggered", { dreamTextLength: dreamText.length, emotion, behavior });
+    if (!dreamText.trim()) {
+      console.warn("handleAnalyze aborted: dreamText is empty");
+      return;
+    }
     setIsAnalyzing(true);
     setError(null);
     setCompletedActions(new Set());
     try {
+      console.log("Calling analyzeDream...");
       const result = await analyzeDream(dreamText, emotion, behavior);
+      console.log("analyzeDream result received:", result);
+      
+      if (!result || typeof result !== 'object') {
+        throw new Error("AI引擎返回的数据格式不正确。");
+      }
+
       setDiagnosis(result);
-      setHistory(prev => [{ ...result, date: new Date().toLocaleString(), text: dreamText }, ...prev]);
+      setHistory(prev => {
+        const newHistory = [{ ...result, date: new Date().toLocaleString(), text: dreamText }, ...prev];
+        console.log("History updated, new size:", newHistory.length);
+        return newHistory;
+      });
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error('Analysis failed in App.tsx:', error);
       setError(error instanceof Error ? error.message : '分析过程中出现未知错误，请稍后重试。');
     } finally {
       setIsAnalyzing(false);
+      console.log("handleAnalyze finished");
     }
   };
 
-  const reset = () => {
+  const reset = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    console.log("Manual reset triggered by user");
     setDiagnosis(null);
     setDreamText('');
     setEmotion('平静');
     setBehavior('正常');
     setCompletedActions(new Set());
+    localStorage.removeItem('zen_diagnosis');
+    localStorage.removeItem('zen_completed_actions');
+    localStorage.removeItem('zen_dream_text');
+    localStorage.removeItem('zen_emotion');
+    localStorage.removeItem('zen_behavior');
   };
 
   const toggleAction = (index: number) => {
@@ -99,6 +252,7 @@ export default function App() {
 状态: ${diagnosis.status}
 修行层级: ${diagnosis.ground}
 障碍识别: ${diagnosis.obstacleType}
+${diagnosis.obstacleType !== '无' ? `障碍释义: ${diagnosis.obstacleDefinition}` : ''}
 
 解析: ${diagnosis.analysis}
 
@@ -131,6 +285,9 @@ ${diagnosis.action.map((a, i) => `${i + 1}. ${a}`).join('\n')}
         .stat { background: #fcfcf9; padding: 20px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.03); }
         .stat-val { font-family: serif; font-size: 22px; font-style: italic; }
         .analysis { font-family: serif; font-size: 22px; line-height: 1.5; margin: 40px 0; }
+        .obstacle-box { background: #fdfaf0; border: 1px solid #e8e0c8; padding: 30px; border-radius: 24px; margin: 30px 0; }
+        .obstacle-title { font-size: 11px; font-weight: bold; color: #8a7a4a; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+        .obstacle-text { font-family: serif; font-size: 18px; font-style: italic; color: #6a5a3a; line-height: 1.6; }
         .actions { background: #1c1c1a; color: white; padding: 40px; border-radius: 32px; }
         .action-item { display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-start; }
         .num { width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
@@ -153,6 +310,13 @@ ${diagnosis.action.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 
         <div class="label">深度解析</div>
         <div class="analysis">${diagnosis.analysis}</div>
+        
+        ${diagnosis.obstacleType !== '无' ? `
+        <div class="obstacle-box">
+            <div class="obstacle-title">${diagnosis.obstacleType} 深度释义</div>
+            <div class="obstacle-text">${diagnosis.obstacleDefinition}</div>
+        </div>
+        ` : ''}
 
         <div class="actions">
             <div class="label" style="color: rgba(255,255,255,0.4); margin-bottom: 24px;">今日修行指令</div>
@@ -181,7 +345,8 @@ ${diagnosis.action.map((a, i) => `${i + 1}. ${a}`).join('\n')}
   };
 
   return (
-    <div className="min-h-screen bg-[var(--zen-bg)] text-[var(--zen-ink)] font-sans atmosphere-bg selection:bg-[var(--zen-accent)] selection:text-white print:bg-white transition-colors duration-500">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-[var(--zen-bg)] text-[var(--zen-ink)] font-sans atmosphere-bg selection:bg-[var(--zen-accent)] selection:text-white print:bg-white transition-colors duration-500">
       <BackgroundAtmosphere />
       
       <Header 
@@ -227,6 +392,7 @@ ${diagnosis.action.map((a, i) => `${i + 1}. ${a}`).join('\n')}
       />
 
       <Footer />
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

@@ -122,7 +122,11 @@ export const DreamInputForm: React.FC<DreamInputFormProps> = ({
         </div>
 
         <button
-          onClick={handleAnalyze}
+          type="button"
+          onClick={() => {
+            console.log("Generate Report button clicked");
+            handleAnalyze();
+          }}
           disabled={isAnalyzing || !dreamText.trim()}
           className={cn(
             "w-full py-8 rounded-[2.5rem] font-bold tracking-[0.3em] uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 group shadow-2xl relative overflow-hidden",
